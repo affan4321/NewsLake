@@ -1,0 +1,18 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Airflow bind-mounted dirs (docker-compose.yml) -- everything in them is runtime state
+logs/*
+!logs/.gitkeep
+plugins/*
+!plugins/.gitkeep
+config/*
+!config/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
