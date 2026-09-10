@@ -2,6 +2,7 @@
 import json
 import os
 import uuid
+from datetime import datetime, timezone
 
 import pandas as pd
 import streamlit as st
@@ -11,6 +12,24 @@ import data_layer
 
 _SAMPLE_DATA_PATH = os.path.join(os.path.dirname(__file__), "sample_data.json")
 _sample_data_cache = None
+
+
+def format_relative_time(iso_timestamp: str) -> str:
+    """'2026-09-12T06:00:00Z' -> 'in 17h 23m' (or 'Xd Yh' beyond a day, or 'any moment now'
+    once past due -- the DAG run just hasn't been picked up by the scheduler yet)."""
+    target = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
+    delta = target - datetime.now(timezone.utc)
+    total_seconds = delta.total_seconds()
+    if total_seconds <= 0:
+        return "any moment now"
+    days, rem = divmod(int(total_seconds), 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes = rem // 60
+    if days > 0:
+        return f"in {days}d {hours}h"
+    if hours > 0:
+        return f"in {hours}h {minutes}m"
+    return f"in {minutes}m"
 
 
 def inject_global_css():
@@ -29,6 +48,54 @@ def inject_global_css():
         }
         [data-testid="stTabs"] button[role="tab"] {
             transition: color 0.2s ease;
+        }
+
+        /* Top page navigation (st.navigation(position="top")): centered, larger, styled
+           as plain text links (underline on hover/active) instead of Streamlit's default
+           pill/tab chrome. Selectors confirmed by walking the LIVE DOM at runtime -- the
+           real nav flex row is an .rc-overflow div (from the rc-overflow library
+           Streamlit uses for the nav's "collapse into a ... menu" overflow behavior),
+           which has no data-testid of its own.
+           Centering: confirmed via computed-style diagnostics that .rc-overflow's own
+           width is already 100% of the viewport (rect: x=0, width=1912px on a 1912px
+           screen) -- so absolute-positioning + transform (an earlier attempt) correctly
+           computed left=50% but had zero visible effect, since centering a box that's
+           already exactly viewport-width doesn't move it anywhere. The actual fix is
+           just centering its *contents*, since it's already a full-width flex row. */
+        .rc-overflow {
+            display: flex !important;
+            justify-content: center !important;
+            gap: 4px;
+        }
+        [data-testid="stTopNavLink"] {
+            font-size: 16px !important;
+            padding: 12px 22px !important;
+            background: transparent !important;
+            border-radius: 0 !important;
+            border-bottom: 2px solid transparent !important;
+            transition: border-color 0.2s ease, color 0.2s ease;
+            position: relative !important;
+        }
+        [data-testid="stTopNavLink"]:hover {
+            border-bottom-color: #ef4444 !important;
+            color: #ef4444 !important;
+        }
+        [data-testid="stTopNavLink"][aria-current="page"] {
+            background: transparent !important;
+            font-weight: 600;
+        }
+        /* Selected page: a small gradient pill below the link instead of the hover underline,
+           so the two states read as visually distinct (transient hover vs. persistent selection). */
+        [data-testid="stTopNavLink"][aria-current="page"]::after {
+            content: "";
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 26px;
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #ef4444, #f59e0b);
         }
         </style>
         """,
@@ -89,6 +156,35 @@ def locked_feature_card(icon: str, title: str, message: str):
             <div style="font-size: 34px; margin-bottom: 10px;">{icon}</div>
             <div style="font-size: 16px; font-weight: 600; color: #e6edf3; margin-bottom: 8px;">{title}</div>
             <div style="font-size: 13px; line-height: 1.6; color: #8b949e; max-width: 520px; margin: 0 auto;">{message}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def layer_card(icon: str, title: str, accent_color: str, description: str, points: list[str]):
+    """A left-accented card describing one pipeline stage -- used on the Pipeline Guide page."""
+    points_html = "".join(f"<li>{p}</li>" for p in points)
+    st.markdown(
+        f"""
+        <div style="
+            border: 1px solid #30363d;
+            border-left: 4px solid {accent_color};
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, {accent_color}14, transparent 60%);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        " onmouseover="this.style.transform='translateX(4px)'; this.style.boxShadow='0 6px 18px rgba(0,0,0,0.25)';"
+          onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <span style="font-size:24px;">{icon}</span>
+                <span style="font-size:17px; font-weight:700; color:#e6edf3;">{title}</span>
+            </div>
+            <div style="font-size:13px; color:#8b949e; margin-bottom:10px; line-height:1.5;">{description}</div>
+            <ul style="margin:0; padding-left:20px; color:#c9d1d9; font-size:13px; line-height:1.85;">
+                {points_html}
+            </ul>
         </div>
         """,
         unsafe_allow_html=True,

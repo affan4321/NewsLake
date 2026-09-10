@@ -95,10 +95,21 @@ def render_pipeline_tab():
         @st.fragment(run_every="3s")
         def pipeline_status():
             try:
+                dag_info = airflow_client.get_dag_info()
                 run = airflow_client.get_latest_run()
             except requests.RequestException as e:
                 st.error(f"Could not reach Airflow API at {airflow_client.AIRFLOW_API_BASE_URL}: {e}")
                 return
+
+            next_run_after = dag_info.get("next_dagrun_run_after")
+            if next_run_after and not dag_info.get("is_paused"):
+                when = next_run_after[:16].replace("T", " ")
+                st.caption(
+                    f"⏰ Next scheduled run: **{when} UTC** ({ui_helpers.format_relative_time(next_run_after)}) "
+                    f"— {dag_info.get('timetable_description', 'schedule not set')}"
+                )
+            elif dag_info.get("is_paused"):
+                st.caption("⏸ DAG is paused — no scheduled runs until unpaused in the Airflow UI.")
 
             if run is None:
                 task_states = {t: None for t in airflow_client.TASK_ORDER}

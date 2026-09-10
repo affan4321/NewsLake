@@ -95,15 +95,22 @@ scripts `source .env` directly in bash, which does not.
 docker compose up -d streamlit
 ```
 
-http://localhost:8501 — two pages, switched via top tabs (`st.navigation(..., position="top")`
-in `streamlit/app.py`, the thin entrypoint; actual page content lives in `streamlit/dashboard.py`
-and `streamlit/data_explorer.py`):
+http://localhost:8501 — three pages, switched via top tabs (`st.navigation(..., position="top")`
+in `streamlit/app.py`, the thin entrypoint; actual page content lives in `streamlit/dashboard.py`,
+`streamlit/pipeline_guide.py`, and `streamlit/data_explorer.py`):
 
 **Dashboard**: Overview KPIs, Topic Trends, Source Analysis, Recent News, and a **Pipeline** tab
 showing the `newslake_pipeline` DAG as a live animated flow diagram (polls the Airflow REST API
 every 3s via `streamlit/airflow_client.py` + `streamlit/pipeline_viz.py`), with a button to
-trigger a run directly from the dashboard, and a badge on the latest run showing whether it was
-triggered by you (manual) or by Airflow's own schedule.
+trigger a run directly from the dashboard, a badge on the latest run showing whether it was
+triggered by you (manual) or by Airflow's own schedule, and the next scheduled run time
+(`GET /api/v2/dags/{dag_id}` → `next_dagrun_run_after` + `timetable_description`).
+
+**Pipeline Guide**: static, always-available explainer (no live connection needed, works
+identically local or deployed) walking through what actually happens at each stage — Bronze
+ingestion, Silver cleaning/validation/dedup, Gold aggregation, the Postgres raw landing zone, dbt's
+staging→intermediate→marts build, plus the quality-gate and retry/idempotency story. Content lives
+in `streamlit/pipeline_guide.py`, rendered via `ui_helpers.layer_card()`.
 
 **Data Explorer**: a read-only browser for every storage layer directly — not just the curated
 visualizations: Bronze JSON (drill into year/month/day/hour partitions in MinIO and preview a raw

@@ -56,6 +56,14 @@ def _request(method, path, **kwargs):
     return resp
 
 
+def get_dag_info() -> dict:
+    """DAG-level metadata -- used for next_dagrun_run_after (next scheduled run) and
+    timetable_description (human-readable cron summary, e.g. 'At 06:00')."""
+    resp = _request("GET", f"/api/v2/dags/{DAG_ID}")
+    resp.raise_for_status()
+    return resp.json()
+
+
 def get_latest_run():
     """Most recent DAG run (any state), or None if the DAG has never run."""
     resp = _request(
