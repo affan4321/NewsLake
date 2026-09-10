@@ -99,23 +99,34 @@ http://localhost:8501 — Overview KPIs, Topic Trends, Source Analysis, Recent N
 **Pipeline** tab showing the `newslake_pipeline` DAG as a live animated flow diagram (polls the
 Airflow REST API every 3s via `streamlit/airflow_client.py` + `streamlit/pipeline_viz.py`), with
 a button to trigger a run directly from the dashboard, and a badge on the latest run showing
-whether it was triggered by you (manual) or by Airflow's own schedule. Degrades gracefully if
-Airflow isn't up — only that tab shows an error, the rest of the dashboard still works off
-Postgres alone.
+whether it was triggered by you (manual) or by Airflow's own schedule.
 
 A second page, **Data Explorer** (`streamlit/pages/1_Data_Explorer.py`, appears in the sidebar
 nav), is a read-only browser for every storage layer directly — not just the curated
 visualizations: Bronze JSON (drill into year/month/day/hour partitions in MinIO and preview a raw
 object), Silver/Gold Parquet (schema + full contents, read straight from MinIO via `s3fs`/`pyarrow`),
 and both Postgres schemas (`raw` and `analytics`) via a generic table-picker + `SELECT * LIMIT N`.
-Shared read logic lives in `streamlit/data_layer.py`. Each of the 5 tabs is independently
-try/except-guarded, so a MinIO or Postgres connection failure only disables that one tab.
+Shared read logic lives in `streamlit/data_layer.py`.
 
-**Deploying to Streamlit Community Cloud:** Postgres is already externally reachable (Neon), and
-`data_layer.py` no longer hard-requires MinIO credentials (verified: importing it and running the
-app with no `MINIO_*` env vars at all works cleanly — Bronze/Silver/Gold tabs show a friendly
-error, everything else works normally). What's left: push this repo to GitHub (nearly this entire
-build is still only local/uncommitted), create a Streamlit Community Cloud app pointed at
-`streamlit/app.py`, and set the `POSTGRES_*` values from `.env` as Streamlit Cloud secrets — no
-`MINIO_*`/`AIRFLOW_*` secrets needed there, those stay unset and those specific tabs just won't
-be usable from the cloud deployment (no route to your local MinIO/Airflow).
+**Local vs. deployed behavior is deliberate, not a fallback.** `data_layer.IS_LOCAL_ENV` (true
+whenever MinIO credentials are configured — MinIO and Airflow are only ever set up together, in
+the local stack) gates the UI *before* attempting any MinIO/Airflow call:
+- **Locally**: Pipeline tab is fully live (diagram + trigger button); Data Explorer's Bronze/Silver/Gold
+  tabs work normally.
+- **Deployed** (e.g. Streamlit Community Cloud): those same views show a designed "locked feature"
+  card (`streamlit/ui_helpers.py::locked_feature_card`) explaining why, instead of an error — this
+  isn't a transient failure that might resolve if your Docker happens to be running; `airflow-apiserver`
+  and `minio` are Docker-internal network hostnames with no route from the public internet at all,
+  regardless of local Docker state. Postgres-backed views (main dashboard, Data Explorer's `raw`/`analytics`
+  tabs) work identically in both environments since Neon is cloud-hosted. Tab order also flips:
+  locally Pipeline is first (dev-focused default); deployed, it's last, so a visitor's first
+  impression is real data, not a locked card.
+
+**Deploying to Streamlit Community Cloud:** push to GitHub, create an app pointed at
+`streamlit/app.py`, set Python version to **3.12** in Advanced settings (Streamlit Cloud has
+defaulted new apps to a much newer Python with no prebuilt wheels yet for `psycopg2-binary`/`pandas`
+at our pinned versions — `psycopg2-binary` fails outright without `pg_config`, which the build image
+doesn't have), and set the `POSTGRES_*` values from `.env` as Streamlit Cloud secrets (Settings →
+Secrets, TOML format — these are exposed as both `st.secrets` and `os.environ`, no code changes
+needed). Do not set `MINIO_*`/`AIRFLOW_*` secrets — those services don't exist in the cloud
+deployment at all, and the app is designed to show the locked-feature state cleanly without them.

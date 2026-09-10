@@ -18,6 +18,11 @@ MINIO_ROOT_USER = os.environ.get("MINIO_ROOT_USER")
 MINIO_ROOT_PASSWORD = os.environ.get("MINIO_ROOT_PASSWORD")
 MINIO_BUCKET = os.environ.get("MINIO_BUCKET", "news-lakehouse")
 MINIO_CONFIGURED = bool(MINIO_ROOT_USER and MINIO_ROOT_PASSWORD)
+# MinIO and Airflow are only ever configured together, in the local docker-compose stack --
+# a cloud deployment (Streamlit Community Cloud) never has either. So "is MinIO configured"
+# doubles as "are we running locally", used to decide whether to attempt live
+# MinIO/Airflow features at all versus showing a locked-feature message outright.
+IS_LOCAL_ENV = MINIO_CONFIGURED
 
 POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "postgres")
 POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")

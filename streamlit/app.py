@@ -8,7 +8,9 @@ import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 
 import airflow_client
+import data_layer
 import pipeline_viz
+import ui_helpers
 
 st.set_page_config(page_title="NewsLake", page_icon="📰", layout="wide")
 
@@ -35,7 +37,7 @@ def run_query(sql: str) -> pd.DataFrame:
 
 
 st.title("📰 NewsLake")
-st.caption("A local news data lakehouse — MinIO + Spark + Airflow + dbt + Postgres")
+st.caption("A news data lakehouse — MinIO + Spark + Airflow + dbt + Postgres")
 
 # --- Overview ---
 overview = run_query("""
@@ -49,56 +51,73 @@ overview = run_query("""
 """).iloc[0]
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Articles", f"{overview['total_articles']:,}")
-col2.metric("Active Sources", f"{overview['active_sources']:,}")
-col3.metric("Articles Today", f"{overview['articles_today']:,}")
-col4.metric("Top Topic", overview["top_topic"] or "—")
+with col1:
+    ui_helpers.kpi_card("Total Articles", f"{overview['total_articles']:,}", "📰")
+with col2:
+    ui_helpers.kpi_card("Active Sources", f"{overview['active_sources']:,}", "📡")
+with col3:
+    ui_helpers.kpi_card("Articles Today", f"{overview['articles_today']:,}", "📅")
+with col4:
+    ui_helpers.kpi_card("Top Topic", overview["top_topic"] or "—", "🔥")
 
 st.divider()
 
-tab_pipeline, tab_topics, tab_sources, tab_recent = st.tabs(
-    ["Pipeline", "Topic Trends", "Source Analysis", "Recent News"]
-)
 
-with tab_pipeline:
-    if st.button("▶ Run Pipeline Now", type="primary"):
-        try:
-            airflow_client.trigger_run()
-            st.success("Pipeline triggered.")
-        except requests.HTTPError as e:
-            if e.response is not None and e.response.status_code == 409:
-                st.warning("A run is already in progress.")
-            else:
-                st.error(f"Failed to trigger pipeline: {e}")
-        except requests.RequestException as e:
-            st.error(f"Could not reach Airflow API: {e}")
+def render_pipeline_tab():
+    if data_layer.IS_LOCAL_ENV:
+        if st.button("▶ Run Pipeline Now", type="primary"):
+            try:
+                airflow_client.trigger_run()
+                st.success("Pipeline triggered.")
+            except requests.HTTPError as e:
+                if e.response is not None and e.response.status_code == 409:
+                    st.warning("A run is already in progress.")
+                else:
+                    st.error(f"Failed to trigger pipeline: {e}")
+            except requests.RequestException as e:
+                st.error(f"Could not reach Airflow API: {e}")
 
-    @st.fragment(run_every="3s")
-    def pipeline_status():
-        try:
-            run = airflow_client.get_latest_run()
-        except requests.RequestException as e:
-            st.error(f"Could not reach Airflow API at {airflow_client.AIRFLOW_API_BASE_URL}: {e}")
-            return
+        @st.fragment(run_every="3s")
+        def pipeline_status():
+            try:
+                run = airflow_client.get_latest_run()
+            except requests.RequestException as e:
+                st.error(f"Could not reach Airflow API at {airflow_client.AIRFLOW_API_BASE_URL}: {e}")
+                return
 
-        if run is None:
-            task_states = {t: None for t in airflow_client.TASK_ORDER}
-            components.html(pipeline_viz.render(task_states, None, None), height=220)
-            return
+            if run is None:
+                task_states = {t: None for t in airflow_client.TASK_ORDER}
+                components.html(pipeline_viz.render(task_states, None, None), height=220)
+                return
 
-        task_states = airflow_client.get_task_states(run["dag_run_id"])
-        components.html(
-            pipeline_viz.render(
-                task_states, run["state"], run["dag_run_id"],
-                run_type=run.get("run_type"),
-                triggered_by=run.get("triggering_user_name"),
-            ),
-            height=220,
+            task_states = airflow_client.get_task_states(run["dag_run_id"])
+            components.html(
+                pipeline_viz.render(
+                    task_states, run["state"], run["dag_run_id"],
+                    run_type=run.get("run_type"),
+                    triggered_by=run.get("triggering_user_name"),
+                ),
+                height=220,
+            )
+
+        pipeline_status()
+    else:
+        # No live Airflow connection from this deployment (see README) -- show the
+        # pipeline's shape as a static illustration instead of attempting (and failing)
+        # a live connection every few seconds.
+        idle_states = {t: None for t in airflow_client.TASK_ORDER}
+        components.html(pipeline_viz.render(idle_states, None, None), height=220)
+        ui_helpers.locked_feature_card(
+            "🔒",
+            "Live pipeline status isn't available here",
+            "The orchestration layer (Airflow) runs in a local development environment, separate "
+            "from this deployment. The diagram above shows the pipeline's shape — ingest, "
+            "transform, load, test — but live run status and manual triggering only work when "
+            "running the full stack locally.",
         )
 
-    pipeline_status()
 
-with tab_topics:
+def render_topics_tab():
     topic_trends = run_query("""
         select date, topic, article_count, unique_sources
         from analytics.mart_topic_trends
@@ -107,29 +126,31 @@ with tab_topics:
 
     if topic_trends.empty:
         st.info("No topic trend data yet — run the pipeline to populate analytics.mart_topic_trends.")
-    else:
-        top_n = st.slider("Show top N topics (by total articles)", 5, 30, 15)
-        totals = topic_trends.groupby("topic")["article_count"].sum().sort_values(ascending=False)
-        top_topics = totals.head(top_n).index
+        return
 
-        st.subheader("Top topics")
-        fig_bar = px.bar(
-            totals.head(top_n).reset_index(),
-            x="article_count", y="topic", orientation="h",
-            labels={"article_count": "Articles", "topic": "Topic"},
-        )
-        fig_bar.update_layout(yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(fig_bar, use_container_width=True)
+    top_n = st.slider("Show top N topics (by total articles)", 5, 30, 15)
+    totals = topic_trends.groupby("topic")["article_count"].sum().sort_values(ascending=False)
+    top_topics = totals.head(top_n).index
 
-        st.subheader("Article count over time, by topic")
-        trend_subset = topic_trends[topic_trends["topic"].isin(top_topics)]
-        fig_line = px.line(
-            trend_subset, x="date", y="article_count", color="topic", markers=True,
-            labels={"article_count": "Articles", "date": "Date"},
-        )
-        st.plotly_chart(fig_line, use_container_width=True)
+    st.subheader("Top topics")
+    fig_bar = px.bar(
+        totals.head(top_n).reset_index(),
+        x="article_count", y="topic", orientation="h",
+        labels={"article_count": "Articles", "topic": "Topic"},
+    )
+    fig_bar.update_layout(yaxis={"categoryorder": "total ascending"})
+    st.plotly_chart(fig_bar, use_container_width=True)
 
-with tab_sources:
+    st.subheader("Article count over time, by topic")
+    trend_subset = topic_trends[topic_trends["topic"].isin(top_topics)]
+    fig_line = px.line(
+        trend_subset, x="date", y="article_count", color="topic", markers=True,
+        labels={"article_count": "Articles", "date": "Date"},
+    )
+    st.plotly_chart(fig_line, use_container_width=True)
+
+
+def render_sources_tab():
     source_activity = run_query("""
         select date, source_id, source_name, article_count
         from analytics.mart_source_activity
@@ -138,29 +159,31 @@ with tab_sources:
 
     if source_activity.empty:
         st.info("No source activity data yet — run the pipeline to populate analytics.mart_source_activity.")
-    else:
-        top_n = st.slider("Show top N publishers (by total articles)", 5, 30, 15, key="sources_top_n")
-        totals = source_activity.groupby("source_name")["article_count"].sum().sort_values(ascending=False)
-        top_sources = totals.head(top_n).index
+        return
 
-        st.subheader("Articles by publisher")
-        fig_bar = px.bar(
-            totals.head(top_n).reset_index(),
-            x="article_count", y="source_name", orientation="h",
-            labels={"article_count": "Articles", "source_name": "Publisher"},
-        )
-        fig_bar.update_layout(yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(fig_bar, use_container_width=True)
+    top_n = st.slider("Show top N publishers (by total articles)", 5, 30, 15, key="sources_top_n")
+    totals = source_activity.groupby("source_name")["article_count"].sum().sort_values(ascending=False)
+    top_sources = totals.head(top_n).index
 
-        st.subheader("Publisher activity over time")
-        activity_subset = source_activity[source_activity["source_name"].isin(top_sources)]
-        fig_line = px.line(
-            activity_subset, x="date", y="article_count", color="source_name", markers=True,
-            labels={"article_count": "Articles", "date": "Date"},
-        )
-        st.plotly_chart(fig_line, use_container_width=True)
+    st.subheader("Articles by publisher")
+    fig_bar = px.bar(
+        totals.head(top_n).reset_index(),
+        x="article_count", y="source_name", orientation="h",
+        labels={"article_count": "Articles", "source_name": "Publisher"},
+    )
+    fig_bar.update_layout(yaxis={"categoryorder": "total ascending"})
+    st.plotly_chart(fig_bar, use_container_width=True)
 
-with tab_recent:
+    st.subheader("Publisher activity over time")
+    activity_subset = source_activity[source_activity["source_name"].isin(top_sources)]
+    fig_line = px.line(
+        activity_subset, x="date", y="article_count", color="source_name", markers=True,
+        labels={"article_count": "Articles", "date": "Date"},
+    )
+    st.plotly_chart(fig_line, use_container_width=True)
+
+
+def render_recent_tab():
     limit = st.slider("Number of articles", 10, 200, 50)
     recent = run_query(f"""
         select
@@ -178,16 +201,37 @@ with tab_recent:
 
     if recent.empty:
         st.info("No articles yet — run the pipeline to populate analytics.fct_articles.")
-    else:
-        st.dataframe(
-            recent,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "title": "Title",
-                "source_name": "Source",
-                "published_at": st.column_config.DatetimeColumn("Published", format="YYYY-MM-DD HH:mm"),
-                "topics": "Topics",
-                "url": st.column_config.LinkColumn("URL", display_text="Open ↗"),
-            },
-        )
+        return
+
+    st.dataframe(
+        recent,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "title": "Title",
+            "source_name": "Source",
+            "published_at": st.column_config.DatetimeColumn("Published", format="YYYY-MM-DD HH:mm"),
+            "topics": "Topics",
+            "url": st.column_config.LinkColumn("URL", display_text="Open ↗"),
+        },
+    )
+
+
+TAB_RENDERERS = {
+    "Pipeline": render_pipeline_tab,
+    "Topic Trends": render_topics_tab,
+    "Source Analysis": render_sources_tab,
+    "Recent News": render_recent_tab,
+}
+
+# Pipeline is only fully interactive locally -- lead with the data tabs on a public
+# deployment instead of opening on a locked-feature card.
+tab_order = (
+    ["Pipeline", "Topic Trends", "Source Analysis", "Recent News"]
+    if data_layer.IS_LOCAL_ENV
+    else ["Topic Trends", "Source Analysis", "Recent News", "Pipeline"]
+)
+
+for tab, name in zip(st.tabs(tab_order), tab_order):
+    with tab:
+        TAB_RENDERERS[name]()
