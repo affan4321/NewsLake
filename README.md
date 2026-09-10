@@ -24,8 +24,6 @@ in .env (default once daily), not hardcoded in the DAG.
 - [x] Stage 4 — Airflow orchestration (newslake_pipeline DAG: fetch_news -> validate_raw_data -> bronze_to_silver -> silver_quality_checks -> silver_to_gold)
 - [x] Stage 5 — Gold -> dbt -> PostgreSQL (load_to_postgres lands article-grain Silver data in `raw`; dbt builds staging/intermediate/marts in `analytics`, dbt_transform + dbt_tests added to the DAG)
 - [x] Stage 6 — PostgreSQL -> Streamlit (Overview KPIs, Topic Trends, Source Analysis, Recent News, plus a live animated Pipeline tab with a manual trigger button)
-- [ ] Stage 7 — Incremental processing, idempotency, quality checks, quarantine
-- [ ] Stage 8 — Full docker-compose (all services)
 
 ## Setup
 
