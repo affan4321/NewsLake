@@ -30,6 +30,7 @@ POSTGRES_DB = os.environ.get("POSTGRES_DB", "newslake")
 POSTGRES_USER = os.environ["POSTGRES_USER"]
 POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
 POSTGRES_SSLMODE = os.environ.get("POSTGRES_SSLMODE")  # unset for local postgres, "require" for Neon
+POSTGRES_IS_NEON = "neon.tech" in POSTGRES_HOST  # drives the "live data from Neon" badge, not hardcoded
 
 S3_STORAGE_OPTIONS = {
     "key": MINIO_ROOT_USER,

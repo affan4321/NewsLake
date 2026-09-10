@@ -1,7 +1,9 @@
+import copy
 import os
 
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
@@ -13,6 +15,18 @@ import pipeline_viz
 import ui_helpers
 
 st.set_page_config(page_title="NewsLake", page_icon="📰", layout="wide")
+
+# Transparent backgrounds so charts blend into the app's own dark theme instead of
+# plotly_dark's slightly different gray. copy.deepcopy avoids mutating the shared
+# built-in "plotly_dark" template object.
+_nl_template = copy.deepcopy(pio.templates["plotly_dark"])
+_nl_template.layout.paper_bgcolor = "rgba(0,0,0,0)"
+_nl_template.layout.plot_bgcolor = "rgba(0,0,0,0)"
+pio.templates["newslake"] = _nl_template
+px.defaults.template = "newslake"
+px.defaults.color_discrete_sequence = [
+    "#ef4444", "#38bdf8", "#a78bfa", "#22c55e", "#f59e0b", "#f472b6", "#2dd4bf", "#fb923c",
+]
 
 POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "postgres")
 POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
@@ -36,8 +50,11 @@ def run_query(sql: str) -> pd.DataFrame:
         return pd.read_sql(text(sql), conn)
 
 
+ui_helpers.inject_global_css()
+
 st.title("📰 NewsLake")
 st.caption("A news data lakehouse — MinIO + Spark + Airflow + dbt + Postgres")
+ui_helpers.postgres_source_badge()
 
 # --- Overview ---
 overview = run_query("""
@@ -52,11 +69,11 @@ overview = run_query("""
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    ui_helpers.kpi_card("Total Articles", f"{overview['total_articles']:,}", "📰")
+    ui_helpers.kpi_card("Total Articles", int(overview["total_articles"]), "📰")
 with col2:
-    ui_helpers.kpi_card("Active Sources", f"{overview['active_sources']:,}", "📡")
+    ui_helpers.kpi_card("Active Sources", int(overview["active_sources"]), "📡")
 with col3:
-    ui_helpers.kpi_card("Articles Today", f"{overview['articles_today']:,}", "📅")
+    ui_helpers.kpi_card("Articles Today", int(overview["articles_today"]), "📅")
 with col4:
     ui_helpers.kpi_card("Top Topic", overview["top_topic"] or "—", "🔥")
 

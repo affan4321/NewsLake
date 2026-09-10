@@ -6,6 +6,7 @@ import data_layer
 import ui_helpers
 
 st.set_page_config(page_title="NewsLake · Data Explorer", page_icon="🔍", layout="wide")
+ui_helpers.inject_global_css()
 st.title("🔍 Data Explorer")
 st.caption("Read-only browser for every storage layer — Bronze/Silver/Gold in MinIO, raw/analytics in Postgres.")
 
@@ -91,6 +92,7 @@ with tab_gold:
             st.error(f"Couldn't reach MinIO: {e}")
 
 with tab_raw:
+    ui_helpers.postgres_source_badge()
     try:
         tables = data_layer.list_pg_tables("raw")
         table = st.selectbox("Table", tables, key="raw_table")
@@ -103,6 +105,7 @@ with tab_raw:
         st.error(f"Couldn't reach Postgres: {e}")
 
 with tab_analytics:
+    ui_helpers.postgres_source_badge()
     try:
         tables = data_layer.list_pg_tables("analytics")
         table = st.selectbox("Table", tables, key="analytics_table")
