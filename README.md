@@ -95,14 +95,17 @@ scripts `source .env` directly in bash, which does not.
 docker compose up -d streamlit
 ```
 
-http://localhost:8501 — Overview KPIs, Topic Trends, Source Analysis, Recent News, and a
-**Pipeline** tab showing the `newslake_pipeline` DAG as a live animated flow diagram (polls the
-Airflow REST API every 3s via `streamlit/airflow_client.py` + `streamlit/pipeline_viz.py`), with
-a button to trigger a run directly from the dashboard, and a badge on the latest run showing
-whether it was triggered by you (manual) or by Airflow's own schedule.
+http://localhost:8501 — two pages, switched via top tabs (`st.navigation(..., position="top")`
+in `streamlit/app.py`, the thin entrypoint; actual page content lives in `streamlit/dashboard.py`
+and `streamlit/data_explorer.py`):
 
-A second page, **Data Explorer** (`streamlit/pages/1_Data_Explorer.py`, appears in the sidebar
-nav), is a read-only browser for every storage layer directly — not just the curated
+**Dashboard**: Overview KPIs, Topic Trends, Source Analysis, Recent News, and a **Pipeline** tab
+showing the `newslake_pipeline` DAG as a live animated flow diagram (polls the Airflow REST API
+every 3s via `streamlit/airflow_client.py` + `streamlit/pipeline_viz.py`), with a button to
+trigger a run directly from the dashboard, and a badge on the latest run showing whether it was
+triggered by you (manual) or by Airflow's own schedule.
+
+**Data Explorer**: a read-only browser for every storage layer directly — not just the curated
 visualizations: Bronze JSON (drill into year/month/day/hour partitions in MinIO and preview a raw
 object), Silver/Gold Parquet (schema + full contents, read straight from MinIO via `s3fs`/`pyarrow`),
 and both Postgres schemas (`raw` and `analytics`) via a generic table-picker + `SELECT * LIMIT N`.

@@ -68,9 +68,9 @@ def render_tabular_sample(key: str):
     data = _load_sample_data()[key]
     _sample_caption()
     st.write("**Columns**")
-    st.dataframe(pd.DataFrame(data["columns"]), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(data["columns"]), hide_index=True)
     st.write("**Sample rows**")
-    st.dataframe(pd.DataFrame(data["sample_rows"]), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(data["sample_rows"]), hide_index=True)
 
 
 def locked_feature_card(icon: str, title: str, message: str):

@@ -5,7 +5,6 @@ import streamlit as st
 import data_layer
 import ui_helpers
 
-st.set_page_config(page_title="NewsLake · Data Explorer", page_icon="🔍", layout="wide")
 ui_helpers.inject_global_css()
 st.title("🔍 Data Explorer")
 st.caption("Read-only browser for every storage layer — Bronze/Silver/Gold in MinIO, raw/analytics in Postgres.")
@@ -63,8 +62,8 @@ with tab_silver:
             table = st.selectbox("Table", ["articles", "sources"], key="silver_table")
             df = data_layer.read_parquet_table(f"silver/{table}/")
             st.caption(f"{len(df):,} rows · {len(df.columns)} columns")
-            st.dataframe(df.dtypes.astype(str).rename("dtype"), use_container_width=True)
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df.dtypes.astype(str).rename("dtype"))
+            st.dataframe(df)
         except Exception as e:
             st.error(f"Couldn't reach MinIO: {e}")
 
@@ -87,7 +86,7 @@ with tab_gold:
             )
             df = data_layer.read_parquet_table(f"gold/{table}/")
             st.caption(f"{len(df):,} rows · {len(df.columns)} columns")
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df)
         except Exception as e:
             st.error(f"Couldn't reach MinIO: {e}")
 
@@ -100,7 +99,7 @@ with tab_raw:
             count = data_layer.pg_row_count("raw", table)
             limit = st.slider("Rows to show", 10, 500, 100, key="raw_limit")
             st.caption(f"{count:,} total rows — showing up to {limit}")
-            st.dataframe(data_layer.read_pg_table("raw", table, limit), use_container_width=True)
+            st.dataframe(data_layer.read_pg_table("raw", table, limit))
     except Exception as e:
         st.error(f"Couldn't reach Postgres: {e}")
 
@@ -113,6 +112,6 @@ with tab_analytics:
             count = data_layer.pg_row_count("analytics", table)
             limit = st.slider("Rows to show", 10, 500, 100, key="analytics_limit")
             st.caption(f"{count:,} total rows — showing up to {limit}")
-            st.dataframe(data_layer.read_pg_table("analytics", table, limit), use_container_width=True)
+            st.dataframe(data_layer.read_pg_table("analytics", table, limit))
     except Exception as e:
         st.error(f"Couldn't reach Postgres: {e}")
