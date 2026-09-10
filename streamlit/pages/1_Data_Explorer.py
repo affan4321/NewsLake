@@ -21,7 +21,9 @@ tab_bronze, tab_silver, tab_gold, tab_raw, tab_analytics = st.tabs(
 
 with tab_bronze:
     if not data_layer.IS_LOCAL_ENV:
-        ui_helpers.locked_feature_card("🔒", "Bronze isn't available here", MINIO_LOCKED_MESSAGE)
+        ui_helpers.locked_feature_card("🔒", "Live Bronze browsing isn't available here", MINIO_LOCKED_MESSAGE)
+        st.divider()
+        ui_helpers.render_bronze_sample()
     else:
         try:
             st.write("Drill into a partition to preview a raw bronze object as landed by ingestion.")
@@ -51,7 +53,10 @@ with tab_bronze:
 
 with tab_silver:
     if not data_layer.IS_LOCAL_ENV:
-        ui_helpers.locked_feature_card("🔒", "Silver isn't available here", MINIO_LOCKED_MESSAGE)
+        ui_helpers.locked_feature_card("🔒", "Live Silver browsing isn't available here", MINIO_LOCKED_MESSAGE)
+        st.divider()
+        table = st.selectbox("Table", ["articles", "sources"], key="silver_table_static")
+        ui_helpers.render_tabular_sample(f"silver_{table}")
     else:
         try:
             table = st.selectbox("Table", ["articles", "sources"], key="silver_table")
@@ -64,7 +69,14 @@ with tab_silver:
 
 with tab_gold:
     if not data_layer.IS_LOCAL_ENV:
-        ui_helpers.locked_feature_card("🔒", "Gold isn't available here", MINIO_LOCKED_MESSAGE)
+        ui_helpers.locked_feature_card("🔒", "Live Gold browsing isn't available here", MINIO_LOCKED_MESSAGE)
+        st.divider()
+        table = st.selectbox(
+            "Table",
+            ["daily_article_metrics", "daily_source_metrics", "topic_trends", "article_activity"],
+            key="gold_table_static",
+        )
+        ui_helpers.render_tabular_sample(f"gold_{table}")
     else:
         try:
             table = st.selectbox(

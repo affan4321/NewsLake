@@ -1,0 +1,162 @@
+{
+  "bronze": {
+    "article": {
+      "uuid": "0011e0f8-50a1-4903-a040-7ead28258b93",
+      "title": "Timeform TV Focus: ITV racing tips for Thursday",
+      "thumbnail": "https://www.sportinglife.com/images/news/1350x759/30118f85-80fd-4366-b06c-d16d29f8110e.jpg",
+      "publisher": "Sporting Life",
+      "authors": [],
+      "topics": [
+        "sports betting"
+      ],
+      "countries": [
+        "GB"
+      ],
+      "languages": [
+        "en"
+      ],
+      "published_at": "2026-09-10T12:20:05.000Z",
+      "original_url": "https://www.sportinglife.com/racing/news/timeform-tv-focus-itv-racing-tips-for-thursday/227793",
+      "incipit": "+ Log in to read full articleSporting Life PlusThu September 10, 2026 · 34 min agoThe Timeform TV Focus team highlight their selections for the ITV racing on Thursday.The Timeform TV Focus team provid",
+      "body": "+ Log in to read full article Sporting Life Plus Thu September 10, 2026 · 34 min ago The Timeform TV Focus team highlight their selections for the ITV racing on Thursday. The Timeform TV Focus team provide their best bets on all the ITV action! The crack team of analysts, reporte..."
+    },
+    "_ingestion": {
+      "run_id": "48e44332-accf-4eeb-a63b-b4be1b656bd3",
+      "ingested_at": "2026-09-10T12:53:55.118923+00:00",
+      "source": "freenewsapi"
+    }
+  },
+  "silver_articles": {
+    "columns": [
+      { "name": "article_id", "dtype": "object" },
+      { "name": "title", "dtype": "object" },
+      { "name": "description", "dtype": "object" },
+      { "name": "content", "dtype": "object" },
+      { "name": "url", "dtype": "object" },
+      { "name": "authors", "dtype": "object" },
+      { "name": "source_name", "dtype": "object" },
+      { "name": "source_id", "dtype": "object" },
+      { "name": "published_at", "dtype": "datetime64[ns]" },
+      { "name": "language", "dtype": "object" },
+      { "name": "topics", "dtype": "object" },
+      { "name": "thumbnail_url", "dtype": "object" },
+      { "name": "ingested_at", "dtype": "datetime64[ns]" },
+      { "name": "run_id", "dtype": "object" },
+      { "name": "year", "dtype": "category" },
+      { "name": "month", "dtype": "category" },
+      { "name": "day", "dtype": "category" }
+    ],
+    "sample_rows": [
+      {
+        "article_id": "0011e0f8-50a1-4903-a040-7ead28258b93",
+        "title": "Timeform TV Focus: ITV racing tips for Thursday",
+        "description": "+ Log in to read full articleSporting Life PlusThu September 10, 2026 · 34 min agoThe Timeform TV Focus team highlight their selections for the ITV ra",
+        "content": "+ Log in to read full article Sporting Life Plus Thu September 10, 2026 · 34 min ago The Timeform TV Focus team highlight their selections for the ITV racing on Thursday. The Timeform TV Focus team pr...",
+        "url": "https://www.sportinglife.com/racing/news/timeform-tv-focus-itv-racing-tips-for-thursday/227793",
+        "authors": [],
+        "source_name": "Sporting Life",
+        "source_id": "sporting_life_5f56dd30",
+        "published_at": "2026-09-10T12:20:05.000",
+        "language": "en",
+        "topics": [
+          "sports betting"
+        ],
+        "thumbnail_url": "https://www.sportinglife.com/images/news/1350x759/30118f85-80fd-4366-b06c-d16d29f8110e.jpg",
+        "ingested_at": "2026-09-10T12:53:55.118",
+        "run_id": "48e44332-accf-4eeb-a63b-b4be1b656bd3",
+        "year": 2026,
+        "month": 9,
+        "day": 10
+      },
+      {
+        "article_id": "001db5b7-56b7-4fb2-b4d2-7f62ba06ea3a",
+        "title": "Ringleader pleads guilty to scheme to steal millions in cryptocurrency",
+        "description": "A 22-year-old man has pleaded guilty in a scheme to steal hundreds of millions of dollars in cryptocurrency as ringleader of a group of over a dozen p",
+        "content": "A 22-year-old man has pleaded guilty in a scheme to steal hundreds of millions of dollars in cryptocurrency as ringleader of a group of over a dozen people who went on a lavish spending spree with the...",
+        "url": "https://www.yahoo.com/news/us/articles/ringleader-pleads-guilty-scheme-steal-131952059.html",
+        "authors": [
+          "Jeanine Santucci",
+          "USA TODAY"
+        ],
+        "source_name": "Yahoo",
+        "source_id": "yahoo_db95f8b8",
+        "published_at": "2026-09-10T13:19:52.000",
+        "language": "en",
+        "topics": [
+          "digital currencies",
+          "finance"
+        ],
+        "thumbnail_url": "https://s.yimg.com/lo/mysterio/api/cdc2fb3caaea8a03a1cc7ba5d07a45eee159df134dffd65cc6bc7702421aad79/lightyear_networkapi/resizefill_w384_h384%3Bquality_80%3Bformat_jpg/https%3A%2F%2Fmedia.zenfs.com%2Fen%2Fusa_today_news_641%2Fea1c98697feb7f74e014b36aa13aa8a4.png",
+        "ingested_at": "2026-09-10T14:15:11.536",
+        "run_id": "06a9dbeb-fc99-4ee5-8ef6-9ab25570f93d",
+        "year": 2026,
+        "month": 9,
+        "day": 10
+      }
+    ]
+  },
+  "silver_sources": {
+    "columns": [
+      { "name": "source_id", "dtype": "object" },
+      { "name": "source_name", "dtype": "object" }
+    ],
+    "sample_rows": [
+      { "source_id": "south_china_morning_post_d44f5b3e", "source_name": "South China Morning Post" },
+      { "source_id": "the_independent_91e3555d", "source_name": "The Independent" }
+    ]
+  },
+  "gold_daily_article_metrics": {
+    "columns": [
+      { "name": "date", "dtype": "object" },
+      { "name": "article_count", "dtype": "int64" },
+      { "name": "distinct_source_count", "dtype": "int64" },
+      { "name": "distinct_topic_count", "dtype": "int64" }
+    ],
+    "sample_rows": [
+      {
+        "date": "2026-09-10T00:00:00.000",
+        "article_count": 991,
+        "distinct_source_count": 640,
+        "distinct_topic_count": 60
+      }
+    ]
+  },
+  "gold_daily_source_metrics": {
+    "columns": [
+      { "name": "date", "dtype": "object" },
+      { "name": "source_id", "dtype": "object" },
+      { "name": "source_name", "dtype": "object" },
+      { "name": "article_count", "dtype": "int64" }
+    ],
+    "sample_rows": [
+      { "date": "2026-09-10T00:00:00.000", "source_id": "sporting_life_5f56dd30", "source_name": "Sporting Life", "article_count": 2 },
+      { "date": "2026-09-10T00:00:00.000", "source_id": "denverpost_com_b15d4c3d", "source_name": "denverpost.com", "article_count": 1 },
+      { "date": "2026-09-10T00:00:00.000", "source_id": "wcyb_e294e0eb", "source_name": "WCYB", "article_count": 1 }
+    ]
+  },
+  "gold_topic_trends": {
+    "columns": [
+      { "name": "date", "dtype": "object" },
+      { "name": "topic", "dtype": "object" },
+      { "name": "article_count", "dtype": "int64" },
+      { "name": "unique_sources", "dtype": "int64" }
+    ],
+    "sample_rows": [
+      { "date": "2026-09-10T00:00:00.000", "topic": "digital currencies", "article_count": 29, "unique_sources": 20 },
+      { "date": "2026-09-10T00:00:00.000", "topic": "politics", "article_count": 23, "unique_sources": 19 },
+      { "date": "2026-09-10T00:00:00.000", "topic": "business", "article_count": 37, "unique_sources": 29 }
+    ]
+  },
+  "gold_article_activity": {
+    "columns": [
+      { "name": "date", "dtype": "object" },
+      { "name": "hour", "dtype": "int32" },
+      { "name": "article_count", "dtype": "int64" }
+    ],
+    "sample_rows": [
+      { "date": "2026-09-10T00:00:00.000", "hour": 13, "article_count": 367 },
+      { "date": "2026-09-10T00:00:00.000", "hour": 15, "article_count": 25 },
+      { "date": "2026-09-10T00:00:00.000", "hour": 12, "article_count": 298 }
+    ]
+  }
+}

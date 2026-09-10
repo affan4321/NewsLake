@@ -1,5 +1,40 @@
 """Shared visual components used across the main dashboard and Data Explorer pages."""
+import json
+import os
+
+import pandas as pd
 import streamlit as st
+
+_SAMPLE_DATA_PATH = os.path.join(os.path.dirname(__file__), "sample_data.json")
+_sample_data_cache = None
+
+
+def _load_sample_data() -> dict:
+    global _sample_data_cache
+    if _sample_data_cache is None:
+        with open(_SAMPLE_DATA_PATH) as f:
+            _sample_data_cache = json.load(f)
+    return _sample_data_cache
+
+
+def _sample_caption():
+    st.caption("📎 Static example captured from a real pipeline run — not live data, but the real shape of it.")
+
+
+def render_bronze_sample():
+    """Bronze has no fixed schema (raw JSON) -- just show one real captured object."""
+    _sample_caption()
+    st.json(_load_sample_data()["bronze"])
+
+
+def render_tabular_sample(key: str):
+    """For Silver/Gold: a schema table (column names + dtypes) plus a couple of real sample rows."""
+    data = _load_sample_data()[key]
+    _sample_caption()
+    st.write("**Columns**")
+    st.dataframe(pd.DataFrame(data["columns"]), use_container_width=True, hide_index=True)
+    st.write("**Sample rows**")
+    st.dataframe(pd.DataFrame(data["sample_rows"]), use_container_width=True, hide_index=True)
 
 
 def locked_feature_card(icon: str, title: str, message: str):

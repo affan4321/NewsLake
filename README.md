@@ -117,7 +117,12 @@ the local stack) gates the UI *before* attempting any MinIO/Airflow call:
   card (`streamlit/ui_helpers.py::locked_feature_card`) explaining why, instead of an error — this
   isn't a transient failure that might resolve if your Docker happens to be running; `airflow-apiserver`
   and `minio` are Docker-internal network hostnames with no route from the public internet at all,
-  regardless of local Docker state. Postgres-backed views (main dashboard, Data Explorer's `raw`/`analytics`
+  regardless of local Docker state. Below the locked card, Bronze/Silver/Gold tabs also show a
+  **static sample** (`streamlit/sample_data.json` — one real captured Bronze record, schema + a
+  couple of real sample rows for each Silver/Gold table, generated once from an actual pipeline
+  run via `ui_helpers.render_bronze_sample()`/`render_tabular_sample()`) so a visitor can still see
+  real column names and real data shape — clearly labeled as a static snapshot, not live data.
+  Postgres-backed views (main dashboard, Data Explorer's `raw`/`analytics`
   tabs) work identically in both environments since Neon is cloud-hosted. Tab order also flips:
   locally Pipeline is first (dev-focused default); deployed, it's last, so a visitor's first
   impression is real data, not a locked card.
