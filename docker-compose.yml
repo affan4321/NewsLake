@@ -69,6 +69,7 @@ services:
     image: spark:3.5.9-python3
     container_name: newslake-spark-master
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master", "--host", "spark-master", "--port", "7077", "--webui-port", "8080"]
+    env_file: .env   # POSTGRES_* etc., for jobs that need more than the s3a --conf flags run_job.sh passes
     ports:
       - "7077:7077"   # cluster RPC, used by workers and spark-submit
       - "8080:8080"   # master web UI
@@ -80,6 +81,7 @@ services:
     image: spark:3.5.9-python3
     container_name: newslake-spark-worker
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077", "--cores", "2", "--memory", "2g", "--webui-port", "8081"]
+    env_file: .env
     depends_on:
       - spark-master
     ports:
@@ -94,6 +96,49 @@ services:
     env_file: .env
     environment:
       MINIO_ENDPOINT: minio:9000   # container-network hostname, overrides the host-venv value in .env
+
+  postgres:
+    image: postgres:16
+    container_name: newslake-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  dbt:
+    build: ./dbt
+    image: newslake-dbt:latest
+    env_file: .env
+    environment:
+      DBT_PROFILES_DIR: /usr/app
+
+  streamlit:
+    build: ./streamlit
+    image: newslake-streamlit:latest
+    container_name: newslake-streamlit
+    env_file: .env
+    environment:
+      # POSTGRES_HOST comes from .env now (Neon), not overridden here -- it's already a
+      # real external hostname reachable from anywhere, unlike the old local `postgres`
+      # service which needed a container-network hostname override.
+      AIRFLOW_API_BASE_URL: http://airflow-apiserver:8080   # internal port, not the host-mapped 8082
+      MINIO_ENDPOINT: minio:9000   # container-network hostname, overrides the host-venv value in .env
+    ports:
+      - "8501:8501"
+    # No depends_on for local `postgres` anymore -- Postgres is Neon (external), not a
+    # compose-managed service. The local `postgres` definition below is an unused fallback.
+      # so this doesn't block the rest of the dashboard from starting.
 
   airflow-postgres:
     image: postgres:16
@@ -236,3 +281,4 @@ volumes:
   minio-data:
   spark-ivy-cache:
   airflow-postgres-data:
+  postgres-data:

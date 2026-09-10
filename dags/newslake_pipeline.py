@@ -60,4 +60,28 @@ with DAG(
         bash_command=f"{RUN_JOB} silver_to_gold.py",
     )
 
-    fetch_news >> validate_raw_data >> bronze_to_silver >> silver_quality_checks >> silver_to_gold
+    load_to_postgres = BashOperator(
+        task_id="load_to_postgres",
+        bash_command=f"{RUN_JOB} load_to_postgres.py",
+    )
+
+    dbt_transform = BashOperator(
+        task_id="dbt_transform",
+        bash_command=f"{COMPOSE} run --rm dbt run",
+    )
+
+    dbt_tests = BashOperator(
+        task_id="dbt_tests",
+        bash_command=f"{COMPOSE} run --rm dbt test",
+    )
+
+    (
+        fetch_news
+        >> validate_raw_data
+        >> bronze_to_silver
+        >> silver_quality_checks
+        >> silver_to_gold
+        >> load_to_postgres
+        >> dbt_transform
+        >> dbt_tests
+    )

@@ -29,7 +29,15 @@ def flatten(raw_df):
         F.col("article.original_url").alias("url"),
         F.col("article.authors").alias("authors"),
         F.trim(F.col("article.publisher")).alias("source_name"),
-        F.lower(F.regexp_replace(F.trim(F.col("article.publisher")), "[^a-zA-Z0-9]+", "_")).alias("source_id"),
+        # ASCII-only slug + a hash suffix of the untouched name: publisher names in
+        # non-Latin scripts (Cyrillic/Arabic/Korean/...) would otherwise all strip down
+        # to the same "_" and collide -- the hash guarantees uniqueness regardless of
+        # script, the slug just keeps ASCII names human-readable.
+        F.concat(
+            F.lower(F.regexp_replace(F.trim(F.col("article.publisher")), "[^a-zA-Z0-9]+", "_")),
+            F.lit("_"),
+            F.substring(F.sha2(F.trim(F.col("article.publisher")), 256), 1, 8),
+        ).alias("source_id"),
         F.to_timestamp(F.col("article.published_at")).alias("published_at"),
         F.col("article.languages").getItem(0).alias("language"),
         F.col("article.topics").alias("topics"),

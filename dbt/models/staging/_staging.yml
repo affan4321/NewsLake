@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: stg_articles
+    columns:
+      - name: article_id
+        data_tests:
+          - unique
+          - not_null
+      - name: title
+        data_tests:
+          - not_null
+      - name: url
+        data_tests:
+          - not_null
+      - name: published_at
+        data_tests:
+          - not_null
+      - name: language
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["en"]
+              config:
+                severity: warn   # freenewsapi.io is filtered to language=en at ingestion time;
+                                  # warn (not fail) in case that filter ever changes upstream
+
+  - name: stg_sources
+    columns:
+      - name: source_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_article_topics
+    columns:
+      - name: article_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_articles')
+                field: article_id
+      - name: topic
+        data_tests:
+          - not_null

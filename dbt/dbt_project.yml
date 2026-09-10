@@ -1,0 +1,24 @@
+name: newslake
+version: "1.0.0"
+config-version: 2
+
+profile: newslake
+
+model-paths: ["models"]
+test-paths: ["tests"]
+
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  newslake:
+    # profiles.yml points the connection's default schema at `analytics`, so no
+    # per-folder +schema override here -- that would produce analytics_analytics
+    # (dbt concatenates target schema + custom schema by default).
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table

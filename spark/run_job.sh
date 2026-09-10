@@ -26,9 +26,9 @@ shift || true
 docker compose -f "$COMPOSE_FILE" run --rm --user root --entrypoint sh spark-master \
   -c "mkdir -p /opt/ivy-cache && chown -R 185:185 /opt/ivy-cache" >/dev/null
 
-docker compose -f "$COMPOSE_FILE" run --rm spark-master /opt/spark/bin/spark-submit \
+docker compose -f "$COMPOSE_FILE" run --rm -e PYTHONUNBUFFERED=1 spark-master /opt/spark/bin/spark-submit \
   --master spark://spark-master:7077 \
-  --packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 \
+  --packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,org.postgresql:postgresql:42.7.4 \
   --conf spark.jars.ivy=/opt/ivy-cache \
   --conf spark.hadoop.fs.s3a.endpoint="http://minio:9000" \
   --conf spark.hadoop.fs.s3a.access.key="$MINIO_ROOT_USER" \

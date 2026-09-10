@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: Article-grain data landed by spark/jobs/load_to_postgres.py from silver/
+    tables:
+      - name: articles
+      - name: sources
+      - name: article_topics

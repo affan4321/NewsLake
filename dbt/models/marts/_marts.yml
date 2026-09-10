@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: fct_articles
+    columns:
+      - name: article_id
+        data_tests:
+          - unique
+          - not_null
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_sources')
+                field: source_id
+
+  - name: mart_topic_trends
+    columns:
+      - name: article_count
+        data_tests:
+          - not_null
+      - name: unique_sources
+        data_tests:
+          - not_null
+
+  - name: mart_source_activity
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_sources')
+                field: source_id
+      - name: article_count
+        data_tests:
+          - not_null
