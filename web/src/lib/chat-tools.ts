@@ -35,7 +35,11 @@ function validateSelectOnly(sql: string): string | null {
 }
 
 function clampLimit(sql: string): string {
-  return /\blimit\s+\d+/i.test(sql) ? sql : `${sql} LIMIT 200`;
+  // Strip a trailing semicolon first — appending "LIMIT 200" after one produces
+  // invalid SQL ("... FROM x; LIMIT 200"), which sent the model into needless
+  // retries whenever it ended its own query with a semicolon.
+  const trimmed = sql.trim().replace(/;+\s*$/, "");
+  return /\blimit\s+\d+/i.test(trimmed) ? trimmed : `${trimmed} LIMIT 200`;
 }
 
 // Trend/aggregate tables never carry huge text; fct_articles does (title/description/
@@ -77,7 +81,13 @@ export const queryMarts = tool({
     try {
       const client = neon(url);
       const rows = await client.query(clampLimit(sql));
-      return { rows: truncateWideFields(rows as Record<string, unknown>[]) };
+      // Timestamp columns (published_at) come back as JS Date objects. The AI SDK
+      // replays this tool result verbatim into the next model turn's message
+      // history, and a Date isn't a valid JSON value there — it fails schema
+      // validation and kills the whole response with no text ever reaching the
+      // client. Round-tripping through JSON coerces Dates to ISO strings first.
+      const plainRows = JSON.parse(JSON.stringify(rows)) as Record<string, unknown>[];
+      return { rows: truncateWideFields(plainRows) };
     } catch (err) {
       return { error: err instanceof Error ? err.message : "Query failed." };
     }

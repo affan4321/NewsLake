@@ -22,6 +22,16 @@ export async function POST(req: Request) {
     // Default is a single step (stop right after the tool call) — allow a few more
     // so the model can read the query result and actually answer in words.
     stopWhen: stepCountIs(5),
+    providerOptions: {
+      // gpt-oss-120b is a reasoning model — by default it streams its reasoning
+      // back as a "reasoning" content part, which then has to be replayed into
+      // the next step's message history. That round-trip currently fails schema
+      // validation in this SDK/provider version combo (AI_TypeValidationError,
+      // "Invalid input: expected reasoning") and kills the whole response with
+      // no text ever reaching the client. Hiding reasoning avoids the bug and
+      // we never displayed it to the user anyway.
+      groq: { reasoningFormat: "hidden" },
+    },
   });
 
   return createUIMessageStreamResponse({
