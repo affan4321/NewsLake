@@ -37,25 +37,29 @@ export default function Hero({ kpis }: { kpis: Kpis }) {
 
       <div className="pointer-events-none relative mx-auto w-full max-w-stage">
         <Reveal>
-          <div className="inline-flex items-center gap-2.5 rounded-full border border-signal/25 bg-signal/[0.06] py-1.5 pr-4 pl-3">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-signal/25 bg-signal/[0.06] py-1 pr-3 pl-2 sm:gap-2.5 sm:py-1.5 sm:pr-4 sm:pl-3">
             {/* A little signal-strength meter instead of a plain pulsing dot. */}
-            <span className="flex h-2.5 items-end gap-[3px]">
+            <span className="flex h-2 items-end gap-[2px] sm:h-2.5 sm:gap-[3px]">
               <span
-                className="w-[3px] animate-pulse rounded-full bg-signal"
+                className="w-[2px] animate-pulse rounded-full bg-signal sm:w-[3px]"
                 style={{ height: "40%", animationDelay: "0ms" }}
               />
               <span
-                className="w-[3px] animate-pulse rounded-full bg-signal"
+                className="w-[2px] animate-pulse rounded-full bg-signal sm:w-[3px]"
                 style={{ height: "100%", animationDelay: "180ms" }}
               />
               <span
-                className="w-[3px] animate-pulse rounded-full bg-signal"
+                className="w-[2px] animate-pulse rounded-full bg-signal sm:w-[3px]"
                 style={{ height: "65%", animationDelay: "360ms" }}
               />
             </span>
-            <span className="eyebrow !text-signal">Live</span>
+            <span className="font-mono text-[9px] tracking-[0.14em] text-signal uppercase sm:text-[0.7rem] sm:tracking-[0.28em]">
+              Live
+            </span>
             <span className="h-3 w-px bg-bone/15" />
-            <span className="eyebrow">from Neon · {freshness(kpis.latestPublished)}</span>
+            <span className="font-mono text-[9px] tracking-[0.14em] whitespace-nowrap text-muted uppercase sm:text-[0.7rem] sm:tracking-[0.28em]">
+              from Neon · {freshness(kpis.latestPublished)}
+            </span>
           </div>
         </Reveal>
 

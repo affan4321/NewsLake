@@ -137,9 +137,9 @@ export default function ChatWidget() {
               aria-label="Open chat"
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
-              className="bg-medallion relative z-10 flex cursor-pointer items-center gap-3 rounded-full py-4 pr-5 pl-6 text-ink shadow-signal"
+              className="bg-medallion relative z-10 flex h-14 w-14 cursor-pointer items-center justify-center gap-3 rounded-full text-ink shadow-signal sm:h-auto sm:w-auto sm:justify-start sm:py-4 sm:pr-5 sm:pl-6"
             >
-              <span className="text-base font-semibold whitespace-nowrap">
+              <span className="hidden text-base font-semibold whitespace-nowrap sm:inline">
                 Chat to see live results
               </span>
               <ChatBubbleIcon />
