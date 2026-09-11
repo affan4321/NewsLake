@@ -1,6 +1,6 @@
 # NewsLake
 
-A containerized, continuously updated news data lakehouse. Ingests raw news data into MinIO, processes it with Apache Spark into Parquet, orchestrates the pipeline with Airflow, applies analytical transformations and tests with dbt, and serves curated datasets through PostgreSQL and Streamlit.
+A containerized, continuously updated news data lakehouse. Ingests raw news data into MinIO, processes it with Apache Spark into Parquet, orchestrates the pipeline with Airflow, applies analytical transformations and tests with dbt, and serves curated datasets through PostgreSQL to a public Next.js site (with an AI chatbot) and a companion Streamlit dashboard.
 
 ## Architecture
 
@@ -9,12 +9,17 @@ freenewsapi.io -> Python ingestion -> MinIO (bronze, raw JSON)
                                     -> PySpark -> MinIO (silver, Parquet)
                                     -> PySpark -> MinIO (gold, Parquet)
                                     -> load -> PostgreSQL (staging)
-                                    -> dbt -> PostgreSQL (marts)
-                                    -> Streamlit (dashboard)
+                                    -> dbt -> PostgreSQL (marts) -> Next.js (public site, web/)
+                                                                 -> Streamlit (companion dashboard)
 
 Airflow (CeleryExecutor) orchestrates every stage above. Schedule is PIPELINE_SCHEDULE_CRON
 in .env (default once daily), not hardcoded in the DAG.
 ```
+
+Two independent frontends read the same `analytics` marts: **`web/`** is the public-facing site
+(Next.js, server-rendered, includes an AI chatbot — see [Web app](#web-app-public-site) below);
+**`streamlit/`** is a companion dashboard that also doubles as a local operational cockpit (live
+Airflow pipeline view, raw storage browser) when running the full stack locally.
 
 ## Build stages
 
@@ -24,6 +29,8 @@ in .env (default once daily), not hardcoded in the DAG.
 - [x] Stage 4 — Airflow orchestration (newslake_pipeline DAG: fetch_news -> validate_raw_data -> bronze_to_silver -> silver_quality_checks -> silver_to_gold)
 - [x] Stage 5 — Gold -> dbt -> PostgreSQL (load_to_postgres lands article-grain Silver data in `raw`; dbt builds staging/intermediate/marts in `analytics`, dbt_transform + dbt_tests added to the DAG)
 - [x] Stage 6 — PostgreSQL -> Streamlit (Overview KPIs, Topic Trends, Source Analysis, Recent News, plus a live animated Pipeline tab with a manual trigger button)
+- [x] Stage 7 — PostgreSQL -> Next.js public site (`web/`): server-rendered hero, KPIs, topics, sources, latest articles, and pipeline story, all queried live from `analytics.*` at request time (revalidated hourly)
+- [x] Stage 8 — AI chatbot embedded in the public site: text-to-SQL over `analytics.*` via tool calling (Groq + Vercel AI SDK), not RAG — see [Web app](#web-app-public-site)
 
 ## Setup
 
@@ -143,3 +150,80 @@ doesn't have), and set the `POSTGRES_*` values from `.env` as Streamlit Cloud se
 Secrets, TOML format — these are exposed as both `st.secrets` and `os.environ`, no code changes
 needed). Do not set `MINIO_*`/`AIRFLOW_*` secrets — those services don't exist in the cloud
 deployment at all, and the app is designed to show the locked-feature state cleanly without them.
+
+## Web app (public site)
+
+`web/` is a separate Next.js 16 + React 19 + Tailwind 4 app — the actual public face of the
+project (Streamlit above is the companion/internal one). It reads `analytics.*` straight from
+Neon at request time via `web/src/lib/db.ts` (no separate API layer), and the page revalidates
+hourly since the pipeline only publishes once a day.
+
+```bash
+cd web
+cp .env.example .env.local   # fill in DATABASE_URL, CHATBOT_DATABASE_URL, GROQ_API_KEY (see below)
+npm install
+npm run dev
+```
+
+http://localhost:3000 — hero, KPI strip, topics/sources/latest-articles sections, a pipeline
+story section, and a floating chat widget (bottom-right, on every page).
+
+### The chatbot: text-to-SQL, not RAG
+
+The chat widget lets a visitor ask questions in plain English ("which topics have the most
+articles?", "who are the top sources?") and get answers computed from the live warehouse. This
+is deliberately **not** RAG (no embeddings, no vector search) — the data is relational, not a
+pile of documents, so the model instead **writes SQL directly** and we execute it. Architecture:
+
+- **Model**: Groq's free tier running `openai/gpt-oss-120b`, a reasoning-and-tool-calling-capable
+  open-weight model. Picked over the Claude API specifically to keep the whole project free to
+  run. Groq's model catalog changes over time — if `openai/gpt-oss-120b` ever 404s, check
+  `GET https://api.groq.com/openai/v1/models` for the current tool-calling-capable lineup.
+- **Framework**: [Vercel AI SDK](https://ai-sdk.dev) (`ai` + `@ai-sdk/groq` + `@ai-sdk/react`) —
+  gives one provider-agnostic API for streaming (`streamText`), tool/function calling (`tool()`),
+  and a ready-made React hook (`useChat`) that manages message state and renders the stream as it
+  arrives. See `web/src/app/api/chat/route.ts` (the streaming endpoint) and
+  `web/src/components/Chat.tsx` / `ChatWidget.tsx` (the UI).
+- **The one tool** (`web/src/lib/chat-tools.ts`, `queryMarts`): takes a SQL string from the model,
+  runs it, returns the rows. The model calls it, reads the result in a second step, then answers
+  in words — a multi-step loop (`stopWhen: stepCountIs(5)`), since the SDK's default is to stop
+  right after a tool call.
+- **The system prompt** (same file) is the model's *only* knowledge of the schema — it describes
+  `fct_articles`, `mart_topic_trends`, `mart_source_activity` column-by-column, plus a short
+  "About NewsLake" section so questions about the project itself (what it is, how the pipeline
+  works) get answered conversationally without touching the database at all.
+- **Guardrails, three layers deep** (code doesn't rely on any single one):
+  1. Code-level regex rejects anything that isn't a single `SELECT` (`validateSelectOnly`).
+  2. A dedicated Postgres role, `chatbot_reader`, has `SELECT`-only grants scoped to the
+     `analytics` schema — no `raw`, no writes — enforced by the database itself, not the app.
+  3. That role also carries an 8-second `statement_timeout` so a runaway query can't hang.
+
+  To recreate the role on a fresh Neon database:
+
+  ```sql
+  CREATE ROLE chatbot_reader WITH LOGIN PASSWORD '<generate one, do not commit it>';
+  GRANT USAGE ON SCHEMA analytics TO chatbot_reader;
+  GRANT SELECT ON ALL TABLES IN SCHEMA analytics TO chatbot_reader;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA analytics GRANT SELECT ON TABLES TO chatbot_reader;
+  ALTER ROLE chatbot_reader SET search_path TO analytics;
+  ALTER ROLE chatbot_reader SET statement_timeout = '8s';
+  ```
+
+  The `search_path` line matters: the system prompt tells the model to query tables unqualified
+  (`fct_articles`, not `analytics.fct_articles`) — without it, every query fails with
+  "relation does not exist." Put the resulting connection string in `CHATBOT_DATABASE_URL`.
+- **A gotcha worth knowing if you touch this code**: Postgres `timestamp` columns (like
+  `published_at`) come back from the Neon driver as native JS `Date` objects. Those are fine to
+  send to the browser (`JSON.stringify` auto-converts them), but the AI SDK also replays a tool's
+  raw return value into the *next* model step as a structured value — and a `Date` isn't valid
+  there, so the whole response fails silently with no error surfaced to the user. The tool
+  round-trips its result through `JSON.parse(JSON.stringify(rows))` before returning, specifically
+  to avoid this.
+
+### Env vars (`web/.env.local`, gitignored)
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Neon connection string the site's pages read from (direct endpoint, not `-pooler`) |
+| `CHATBOT_DATABASE_URL` | Connection string for the `chatbot_reader` role above — analytics-only, read-only |
+| `GROQ_API_KEY` | Free API key from [console.groq.com](https://console.groq.com) |

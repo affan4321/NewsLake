@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NewsLake — web
 
-## Getting Started
+The public-facing site for [NewsLake](../README.md), a news data lakehouse. Next.js 16 (App
+Router) + React 19 + Tailwind 4 + `motion`, server-rendered straight from the `analytics` schema
+in Neon Postgres — no separate API layer, no static exports. See the [root README](../README.md)
+for how that data gets there (MinIO → Spark → Airflow → dbt → Neon).
 
-First, run the development server:
+## Setup
 
 ```bash
+cp .env.example .env.local   # fill in DATABASE_URL, CHATBOT_DATABASE_URL, GROQ_API_KEY
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Env vars (`.env.local`, gitignored):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Neon connection string the page reads from (direct endpoint, not `-pooler`) |
+| `CHATBOT_DATABASE_URL` | Read-only, `analytics`-schema-only connection used by the chat SQL tool |
+| `GROQ_API_KEY` | Free key from [console.groq.com](https://console.groq.com), powers the chatbot |
 
-## Learn More
+## Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/
+    page.tsx          entry point — fetches KPIs/topics/sources/articles, renders sections
+    layout.tsx         fonts, metadata, mounts the global <ChatWidget />
+    api/chat/route.ts  streaming chat endpoint (see below)
+    globals.css         design tokens: colors, .eyebrow/.display utilities, animations
+  components/
+    Hero, KpiStrip, TopicsSection, SourcesSection, ArticlesSection,
+    PipelineSection, CockpitSection, Footer, Nav      page sections
+    Globe                                              canvas globe in the hero (drag on desktop,
+                                                        auto-tumbles on mobile — no drag gesture there,
+                                                        it fights page scroll)
+    ChatWidget, Chat                                   floating chat launcher + panel
+  lib/
+    db.ts          server-side data layer — one function per section, reads analytics.*
+    chat-tools.ts  the chatbot's SQL tool + its system prompt
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Page data fetching happens once per request in `page.tsx` (`Promise.all` of four `lib/db.ts`
+calls) and is passed down as props — no client-side fetching for page content. `revalidate =
+3600` in `page.tsx`: the pipeline only publishes once a day, so hourly is plenty fresh without
+hitting Postgres on every visit.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## The chatbot
 
-## Deploy on Vercel
+The floating chat widget (bottom-right, every page) answers questions about the data by having
+an LLM **write and run SQL directly** — not RAG. There's no vector search or document retrieval
+here; the "knowledge" is a schema description in a system prompt, and the model generates a query
+the same way it would generate any other code.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `app/api/chat/route.ts` — a Next.js route calling `streamText()` from the
+  [Vercel AI SDK](https://ai-sdk.dev), passing it one tool (`queryMarts`) and Groq's
+  `openai/gpt-oss-120b` as the model. The SDK's default is to stop right after a tool call, so
+  `stopWhen: stepCountIs(5)` is set explicitly to let the model read the query result and answer
+  in words as a second step.
+- `lib/chat-tools.ts` — `queryMarts` (the tool itself: takes a SQL string, runs it against Neon,
+  returns rows) and `CHAT_SYSTEM_PROMPT` (the model's entire knowledge of the schema, plus static
+  "about NewsLake" context so it can answer project questions without a query at all).
+- `components/Chat.tsx` / `ChatWidget.tsx` — the UI, using `useChat` from `@ai-sdk/react` to
+  stream the response in token-by-token.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Guardrails** (three independent layers, so no single one has to be perfect):
+1. Code rejects anything that isn't a single `SELECT` before it's sent anywhere.
+2. The connection uses a dedicated `chatbot_reader` Postgres role, `SELECT`-only on the
+   `analytics` schema — no `raw`, no writes, enforced by the database itself. See the root
+   README's [Web app](../README.md#web-app-public-site) section for the exact SQL to recreate it.
+3. That role has an 8-second `statement_timeout`.
+
+**A gotcha, if you touch `chat-tools.ts`:** Postgres `timestamp` columns come back from the Neon
+driver as native JS `Date` objects. Fine for the browser (`JSON.stringify` handles it), but the AI
+SDK also replays a tool's raw return value into the model's *next* turn as a structured value —
+and `Date` isn't valid there, which fails silently with no error reaching the user. The tool
+round-trips its result through `JSON.parse(JSON.stringify(rows))` specifically to avoid this.
+
+## Learn more
+
+- [Next.js docs](https://nextjs.org/docs)
+- [Vercel AI SDK docs](https://ai-sdk.dev/docs)
+- [Groq](https://groq.com) — free-tier inference the chatbot runs on
