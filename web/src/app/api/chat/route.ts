@@ -25,6 +25,16 @@ export async function POST(req: Request) {
   });
 
   return createUIMessageStreamResponse({
-    stream: toUIMessageStream({ stream: result.stream }),
+    stream: toUIMessageStream({
+      stream: result.stream,
+      // Without this, a mid-stream error (Groq rate limit, timeout, etc.) just
+      // drops the connection — the client sees the loading indicator vanish with
+      // no message and no explanation. Turning it into an error part lets the UI
+      // show something instead of going silent.
+      onError: (error) => {
+        console.error("Chat stream error:", error);
+        return "Something went wrong answering that. Please try again.";
+      },
+    }),
   });
 }

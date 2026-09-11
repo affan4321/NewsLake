@@ -12,7 +12,7 @@ const STARTERS = [
 
 export default function Chat({ onClose }: { onClose: () => void }) {
   const [input, setInput] = useState("");
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
   });
 
@@ -96,6 +96,13 @@ export default function Chat({ onClose }: { onClose: () => void }) {
                 className="h-1.5 w-1.5 animate-pulse rounded-full bg-signal"
                 style={{ animationDelay: "300ms" }}
               />
+            </div>
+          </div>
+        ) : null}
+        {!busy && error ? (
+          <div className="flex justify-start">
+            <div className="max-w-[85%] rounded-2xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-sm leading-relaxed text-red-300">
+              Something went wrong answering that. Mind trying again?
             </div>
           </div>
         ) : null}
