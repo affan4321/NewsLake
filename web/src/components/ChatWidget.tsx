@@ -6,7 +6,7 @@ import Chat from "./Chat";
 
 function ChatBubbleIcon() {
   return (
-    <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="h-6 w-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -17,15 +17,48 @@ function ChatBubbleIcon() {
   );
 }
 
-// Slow and deliberate. Opacity keyframes finish fading well before the scale keyframe
-// finishes expanding (see the ring's transition below) — that gap is what makes each
-// ring read as vanishing mid-flight instead of ballooning out to a visible edge.
-const RING_DURATION = 3.2;
+const RING_DURATION = 4;
+const RING_COUNT = 2;
+/** How far each ring travels outward from every edge of the pill, in px. */
+const RING_SPREAD = 64;
+const RING_DELAYS = Array.from(
+  { length: RING_COUNT },
+  (_, i) => (i * RING_DURATION) / RING_COUNT,
+);
 
 /*
- * Persistent bottom-right widget, present on every page. Collapsed state is a single
- * pill button (label + icon); it morphs into a plain close button once open via
- * Framer Motion's layout animation, and back again on close.
+ * Ring timing. Position and opacity share ONE keyframe set on ONE `times` timeline:
+ * split across per-property transitions they drift out of phase under
+ * `repeat: Infinity`. Opacity starts and ends at 0 so the loop restart is invisible —
+ * a non-zero first frame is what made a ring pop into existence each cycle.
+ */
+const RING_TIMES = [0, 0.12, 0.5, 1];
+/**
+ * Rings grow by pushing all four insets outward by equal PIXEL amounts, not by
+ * `scale`. The pill is far wider than it is tall, so scaling it uniformly adds
+ * proportionally more width than height and reads as a sideways stretch. Equal pixel
+ * offsets keep the halo hugging the pill evenly the whole way around.
+ *
+ * Offsets are proportional to RING_TIMES so that, with `ease: "linear"`, travel is
+ * genuinely constant-speed — no easeOut burst that makes a ring appear already-large.
+ */
+const RING_INSET = RING_TIMES.map((t) => -RING_SPREAD * t);
+
+const SWAP = {
+  initial: { opacity: 0, scale: 0.8 },
+  animate: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.8 },
+  transition: { duration: 0.15, ease: [0.22, 1, 0.36, 1] as const },
+};
+
+/*
+ * Persistent bottom-right widget, present on every page. The launcher and the close
+ * button are two separate elements that fade/scale in and out rather than one element
+ * morphing between shapes — a width morph from a wide pill to a small circle reads as
+ * a squash rather than a state change.
+ *
+ * The wrapper holds `min-h-14` so it keeps the launcher's height even while no button
+ * is mounted mid-swap; without it the column collapses and the open panel jumps down.
  */
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -48,51 +81,71 @@ export default function ChatWidget() {
         )}
       </AnimatePresence>
 
-      <div className="relative">
+      {/* Sizes itself to the launcher, so `inset-0` rings and the glow start exactly at
+          the pill's outline. Both sit behind the button, which is lifted to z-10. */}
+      <div className="relative flex min-h-14 items-center justify-end">
+        {!open && (
+          <div
+            aria-hidden
+            className="bg-signal/30 pointer-events-none absolute -inset-1 rounded-full blur-xl"
+          />
+        )}
+
         {showRings &&
-          [0, RING_DURATION / 2].map((delay) => (
+          RING_DELAYS.map((delay) => (
             <motion.span
               key={delay}
               aria-hidden
-              className="border-signal/70 pointer-events-none absolute inset-0 rounded-full border-2"
-              animate={{ scale: [1, 1.4], opacity: [0.5, 0.5, 0, 0] }}
+              className="border-signal/60 pointer-events-none absolute rounded-full border-2"
+              animate={{
+                top: RING_INSET,
+                right: RING_INSET,
+                bottom: RING_INSET,
+                left: RING_INSET,
+                opacity: [0, 0.55, 0.3, 0],
+              }}
               transition={{
-                scale: { duration: RING_DURATION, repeat: Infinity, ease: "easeOut", delay },
-                opacity: {
-                  duration: RING_DURATION,
-                  repeat: Infinity,
-                  delay,
-                  times: [0, 0.3, 0.6, 1],
-                },
+                duration: RING_DURATION,
+                repeat: Infinity,
+                ease: "linear",
+                delay,
+                times: RING_TIMES,
               }}
             />
           ))}
 
-        <motion.button
-          layout
-          onClick={() => setOpen((v) => !v)}
-          aria-label={open ? "Close chat" : "Open chat"}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
-          className={
-            open
-              ? "bg-medallion relative z-10 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full text-ink shadow-signal"
-              : "bg-medallion relative z-10 flex cursor-pointer items-center gap-2.5 rounded-full py-3.5 pr-4 pl-5 text-ink shadow-signal"
-          }
-        >
+        <AnimatePresence initial={false} mode="popLayout">
           {open ? (
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeWidth={1.8} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <motion.button
+              key="close"
+              {...SWAP}
+              onClick={() => setOpen(false)}
+              aria-label="Close chat"
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.94 }}
+              className="bg-medallion relative z-10 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full text-ink shadow-signal"
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeWidth={1.8} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </motion.button>
           ) : (
-            <>
-              <span className="text-sm font-semibold whitespace-nowrap">
+            <motion.button
+              key="open"
+              {...SWAP}
+              onClick={() => setOpen(true)}
+              aria-label="Open chat"
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              className="bg-medallion relative z-10 flex cursor-pointer items-center gap-3 rounded-full py-4 pr-5 pl-6 text-ink shadow-signal"
+            >
+              <span className="text-base font-semibold whitespace-nowrap">
                 Chat to see live results
               </span>
               <ChatBubbleIcon />
-            </>
+            </motion.button>
           )}
-        </motion.button>
+        </AnimatePresence>
       </div>
     </div>
   );
