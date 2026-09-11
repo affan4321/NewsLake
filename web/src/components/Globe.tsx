@@ -104,6 +104,14 @@ export default function Globe() {
     let lastY = 0;
     let lastT = 0;
 
+    // On mobile there's no drag gesture (it fights page scroll), so the globe tumbles
+    // on its own instead: periodically pick a new random velocity for each axis and
+    // ease toward it, rather than just spinning on one axis.
+    const MOBILE_WANDER_SPEED = 0.0022;
+    let wanderTargetY = velY;
+    let wanderTargetX = 0;
+    let nextWanderAt = 0;
+
     const pings: Ping[] = [];
     let nextPingAt = performance.now() + 800;
 
@@ -135,9 +143,11 @@ export default function Globe() {
       canvas!.releasePointerCapture(e.pointerId);
     }
 
-    canvas.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
+    if (!isSmall) {
+      canvas.addEventListener("pointerdown", onPointerDown);
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+    }
 
     let raf = 0;
     let lastFrame = performance.now();
@@ -148,7 +158,17 @@ export default function Globe() {
       lastFrame = now;
 
       if (!isDragging) {
-        if (!reducedMotion) {
+        if (!reducedMotion && isSmall) {
+          if (now >= nextWanderAt) {
+            wanderTargetY = (Math.random() * 2 - 1) * MOBILE_WANDER_SPEED;
+            wanderTargetX = (Math.random() * 2 - 1) * MOBILE_WANDER_SPEED;
+            nextWanderAt = now + 2200 + Math.random() * 1800;
+          }
+          velY += (wanderTargetY - velY) * 0.01;
+          velX += (wanderTargetX - velX) * 0.01;
+          rotY += velY * (dt / 16.7);
+          rotX += velX * (dt / 16.7);
+        } else if (!reducedMotion) {
           // Idle auto-spin: velocity decays toward a slow constant drift, not to zero.
           rotY += velY * (dt / 16.7);
           rotX += velX * (dt / 16.7);
@@ -255,7 +275,7 @@ export default function Globe() {
     <canvas
       ref={canvasRef}
       aria-hidden
-      className={`h-full w-full touch-none select-none ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+      className={`h-full w-full touch-pan-y select-none sm:touch-none ${dragging ? "sm:cursor-grabbing" : "sm:cursor-grab"}`}
     />
   );
 }
