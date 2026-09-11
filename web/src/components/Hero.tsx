@@ -1,4 +1,5 @@
 import type { Kpis } from "@/lib/db";
+import Globe from "./Globe";
 import { Reveal } from "./Reveal";
 
 function freshness(iso: string | null) {
@@ -16,25 +17,45 @@ export default function Hero({ kpis }: { kpis: Kpis }) {
       id="top"
       className="grain relative flex min-h-[92svh] items-center overflow-hidden px-5 pt-32 pb-20 md:px-10"
     >
-      {/* Ambient glows in two medallion tones. Kept modest in radius — very large
-          blurred boxes force browsers to allocate big offscreen buffers. */}
+      {/* The globe sits behind everything, faded out near the top (where the headline
+          sits) via a mask so it never fights text contrast, and faded into the page
+          background at the bottom so it doesn't hard-cut into the next section. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          maskImage: "linear-gradient(to bottom, transparent, black 30%, black 78%, transparent)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent, black 30%, black 78%, transparent)",
+        }}
+      >
+        <Globe />
+      </div>
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-56 left-1/3 h-[22rem] w-[22rem] rounded-full bg-bronze/10 blur-[70px] md:h-[40rem] md:w-[40rem] md:blur-[140px]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-20 -bottom-64 h-[18rem] w-[18rem] rounded-full bg-signal/10 blur-[70px] md:h-[32rem] md:w-[32rem] md:blur-[140px]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-ink to-transparent"
       />
 
-      <div className="mx-auto w-full max-w-stage">
+      <div className="pointer-events-none relative mx-auto w-full max-w-stage">
         <Reveal>
-          <div className="flex items-center gap-3">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-70" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-signal" />
+          <div className="inline-flex items-center gap-2.5 rounded-full border border-signal/25 bg-signal/[0.06] py-1.5 pr-4 pl-3">
+            {/* A little signal-strength meter instead of a plain pulsing dot. */}
+            <span className="flex h-2.5 items-end gap-[3px]">
+              <span
+                className="w-[3px] animate-pulse rounded-full bg-signal"
+                style={{ height: "40%", animationDelay: "0ms" }}
+              />
+              <span
+                className="w-[3px] animate-pulse rounded-full bg-signal"
+                style={{ height: "100%", animationDelay: "180ms" }}
+              />
+              <span
+                className="w-[3px] animate-pulse rounded-full bg-signal"
+                style={{ height: "65%", animationDelay: "360ms" }}
+              />
             </span>
-            <span className="eyebrow">Live from Neon — {freshness(kpis.latestPublished)}</span>
+            <span className="eyebrow !text-signal">Live</span>
+            <span className="h-3 w-px bg-bone/15" />
+            <span className="eyebrow">from Neon · {freshness(kpis.latestPublished)}</span>
           </div>
         </Reveal>
 
@@ -65,16 +86,16 @@ export default function Hero({ kpis }: { kpis: Kpis }) {
           </Reveal>
 
           <Reveal delay={0.3}>
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="pointer-events-auto flex flex-wrap items-center gap-4">
               <a
                 href="#overview"
-                className="bg-medallion inline-flex items-center gap-2 rounded-full px-7 py-4 text-sm font-semibold tracking-[0.06em] text-ink shadow-signal transition-transform duration-300 hover:scale-[1.04]"
+                className="bg-medallion inline-flex items-center gap-2 rounded-xl px-7 py-4 text-sm font-semibold tracking-[0.06em] text-ink shadow-signal transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-lift"
               >
                 Explore the data
               </a>
               <a
                 href="#pipeline"
-                className="inline-flex items-center gap-2 rounded-full border border-bone/25 px-7 py-4 text-sm tracking-[0.06em] text-bone transition-colors hover:border-signal hover:text-signal"
+                className="inline-flex items-center gap-2 rounded-xl border border-bone/25 px-7 py-4 text-sm tracking-[0.06em] text-bone transition-colors hover:border-signal hover:text-signal"
               >
                 How it works
               </a>

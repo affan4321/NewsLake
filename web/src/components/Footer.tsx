@@ -1,3 +1,5 @@
+import Logo from "./Logo";
+
 const STACK = [
   "Python",
   "MinIO",
@@ -15,8 +17,8 @@ export default function Footer() {
       <div className="mx-auto w-full max-w-stage px-5 py-14 md:px-10">
         <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
           <div>
-            <div className="flex items-center gap-3">
-              <span className="bg-medallion h-2.5 w-2.5 rounded-full" />
+            <div className="flex items-center gap-2.5">
+              <Logo className="h-6 w-6" />
               <span className="font-mono text-xs tracking-[0.18em] text-bone uppercase">
                 NewsLake
               </span>

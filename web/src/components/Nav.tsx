@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import Logo from "./Logo";
 
 const LINKS = [
   { label: "Overview", href: "#overview" },
@@ -10,6 +11,8 @@ const LINKS = [
   { label: "Latest", href: "#latest" },
   { label: "Pipeline", href: "#pipeline" },
 ];
+
+const DASHBOARD_URL = "https://newslake.streamlit.app";
 
 export default function Nav() {
   const [open, setOpen] = useState(false);
@@ -37,8 +40,8 @@ export default function Nav() {
       }`}
     >
       <div className="mx-auto flex max-w-stage items-center justify-between px-5 md:px-10">
-        <a href="#top" className="flex items-center gap-3" onClick={() => setOpen(false)}>
-          <span className="bg-medallion h-2.5 w-2.5 rounded-full" />
+        <a href="#top" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
+          <Logo className="h-7 w-7" />
           <span className="font-mono text-xs uppercase tracking-[0.18em] text-bone">
             NewsLake
           </span>
@@ -57,6 +60,19 @@ export default function Nav() {
             </li>
           ))}
         </ul>
+
+        <a
+          href={DASHBOARD_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden items-center gap-2 rounded-xl border border-signal/30 bg-signal/[0.08] px-5 py-2.5 font-mono text-[11px] tracking-[0.14em] text-signal uppercase transition-colors duration-300 hover:bg-signal/15 md:inline-flex"
+        >
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-60" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-signal" />
+          </span>
+          Live dashboard
+        </a>
 
         <button
           type="button"
@@ -95,6 +111,20 @@ export default function Nav() {
                 </a>
               </li>
             ))}
+            <li className="pt-3">
+              <a
+                href={DASHBOARD_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl border border-signal/30 bg-signal/[0.08] py-3 font-mono text-sm tracking-[0.14em] text-signal uppercase"
+              >
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-60" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-signal" />
+                </span>
+                Live dashboard
+              </a>
+            </li>
           </motion.ul>
         )}
       </AnimatePresence>
