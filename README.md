@@ -160,13 +160,39 @@ hourly since the pipeline only publishes once a day.
 
 ```bash
 cd web
-cp .env.example .env.local   # fill in DATABASE_URL, CHATBOT_DATABASE_URL, GROQ_API_KEY (see below)
+cp .env.example .env.local   # fill in DATABASE_URL, CHATBOT_DATABASE_URL, GROQ_API_KEY, REVALIDATE_SECRET (see below)
 npm install
 npm run dev
 ```
 
 http://localhost:3000 — hero, KPI strip, topics/sources/latest-articles sections, a pipeline
 story section, and a floating chat widget (bottom-right, on every page).
+
+### Getting fresh data to the site without waiting an hour
+
+The homepage's hourly cache (`revalidate = 3600`) is fine for the normal once-daily schedule,
+but it means a manual/off-schedule pipeline run wouldn't show up on the site until that cache
+happened to expire — the underlying Postgres data is correct immediately, only the site's
+cached HTML lags. (This doesn't affect Streamlit at all, since it queries fresh on every page
+load with no caching layer — that mismatch is exactly what surfaces this if you don't know
+about it.)
+
+The DAG's last task (`revalidate_site` in `dags/newslake_pipeline.py`) closes this gap: right
+after `dbt_tests` passes, it `POST`s to `web/src/app/api/revalidate/route.ts` with a shared
+secret, which calls Next.js's `revalidatePath("/")` to force the cache to refresh immediately —
+no waiting, no lowering the cache window for normal traffic. Wiring:
+
+- `NEXTJS_SITE_URL` (root `.env`) — where the DAG sends the request. Point this at your
+  deployed site (e.g. the Vercel URL) once it's live; `http://localhost:3000` only works if
+  you're running the site locally alongside a local pipeline run.
+- `REVALIDATE_SECRET` — must be the exact same value in root `.env` (read by the Airflow
+  worker) and wherever the site itself is running (`web/.env.local` locally, or your
+  deployment platform's env vars in production) — the route rejects any request whose
+  `Authorization: Bearer <value>` doesn't match.
+- If the request fails (site unreachable, secret mismatch), the task fails and retries per
+  `default_args` (2 retries, 5 min apart) like every other task — but the pipeline's actual
+  data is already committed and tested by this point, so a failure here only delays the
+  site's refresh, it never risks the data itself.
 
 ### The chatbot: text-to-SQL, not RAG
 

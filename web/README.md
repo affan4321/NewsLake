@@ -8,7 +8,7 @@ for how that data gets there (MinIO → Spark → Airflow → dbt → Neon).
 ## Setup
 
 ```bash
-cp .env.example .env.local   # fill in DATABASE_URL, CHATBOT_DATABASE_URL, GROQ_API_KEY
+cp .env.example .env.local   # fill in DATABASE_URL, CHATBOT_DATABASE_URL, GROQ_API_KEY, REVALIDATE_SECRET
 npm install
 npm run dev
 ```
@@ -22,6 +22,7 @@ Env vars (`.env.local`, gitignored):
 | `DATABASE_URL` | Neon connection string the page reads from (direct endpoint, not `-pooler`) |
 | `CHATBOT_DATABASE_URL` | Read-only, `analytics`-schema-only connection used by the chat SQL tool |
 | `GROQ_API_KEY` | Free key from [console.groq.com](https://console.groq.com), powers the chatbot |
+| `REVALIDATE_SECRET` | Shared secret checked by `api/revalidate` — must match root `.env`'s value |
 
 ## Structure
 
@@ -30,7 +31,9 @@ src/
   app/
     page.tsx          entry point — fetches KPIs/topics/sources/articles, renders sections
     layout.tsx         fonts, metadata, mounts the global <ChatWidget />
-    api/chat/route.ts  streaming chat endpoint (see below)
+    api/chat/route.ts        streaming chat endpoint (see below)
+    api/revalidate/route.ts  called by the pipeline's DAG after a run, forces the homepage
+                             cache to refresh instead of waiting up to an hour
     globals.css         design tokens: colors, .eyebrow/.display utilities, animations
   components/
     Hero, KpiStrip, TopicsSection, SourcesSection, ArticlesSection,
@@ -47,7 +50,10 @@ src/
 Page data fetching happens once per request in `page.tsx` (`Promise.all` of four `lib/db.ts`
 calls) and is passed down as props — no client-side fetching for page content. `revalidate =
 3600` in `page.tsx`: the pipeline only publishes once a day, so hourly is plenty fresh without
-hitting Postgres on every visit.
+hitting Postgres on every visit. `app/api/revalidate/route.ts` is the escape hatch for that
+cache — the Airflow DAG's last task calls it after a successful run so the homepage doesn't
+have to wait out the hour on a manual/off-schedule run. See the root README's
+[Web app](../README.md#web-app-public-site) section for the full wiring.
 
 ## The chatbot
 

@@ -75,6 +75,19 @@ with DAG(
         bash_command=f"{COMPOSE} run --rm dbt test",
     )
 
+    # Runs only if every upstream task succeeded -- the site's homepage is cached for up
+    # to an hour (revalidate = 3600 in web/src/app/page.tsx), so without this a fresh run
+    # wouldn't show up until that cache expired on its own. NEXTJS_SITE_URL and
+    # REVALIDATE_SECRET come from .env; -f makes curl fail (and retry, per default_args)
+    # on a non-2xx response instead of silently succeeding.
+    revalidate_site = BashOperator(
+        task_id="revalidate_site",
+        bash_command=(
+            'curl -sf -X POST "$NEXTJS_SITE_URL/api/revalidate" '
+            '-H "Authorization: Bearer $REVALIDATE_SECRET"'
+        ),
+    )
+
     (
         fetch_news
         >> validate_raw_data
@@ -84,4 +97,5 @@ with DAG(
         >> load_to_postgres
         >> dbt_transform
         >> dbt_tests
+        >> revalidate_site
     )
